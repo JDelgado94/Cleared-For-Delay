@@ -1,0 +1,75 @@
+/*
+* Name: Cleared for Delay
+* Author: Jorge Delgado
+* Class: CEN 4930C
+* Description: Uses AviationStack's API to gather Delay data. 
+* */
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.BufferedReader;
+import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+
+
+public class Main {
+    private static final String API_KEY = "7f20e4c4a9fee2e6b38f5dbf845180f8";
+    private static final String BASE_URL = "https://api.aviationstack.com/v1/flights?access_key=";
+    public static void main(String[] args) {
+        String [] airportCodes = {"JFK", "MCO", "LAX", "ORD"};
+
+        try(PrintWriter writer = new PrintWriter(new FileWriter("flight_data.csv"))) {
+            writer.println("Flight Number,Airline,Arrival Airport,Scheduled Departure, Delay (mins)");
+
+            for (String code : airportCodes) {
+                String jsonResponse = getAPIResponse(code);
+                parseAndWriteFlights(jsonResponse, writer);
+                Thread.sleep(2000);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+    }
+    //--------------------------------------------------------------------------------------------------------------------
+
+    public static String getAPIResponse(String code) throws Exception {
+        String fullUrl = BASE_URL + API_KEY +"&arr_iata=" + code;
+        URL url = new URL(fullUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        StringBuilder response = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+        return response.toString();
+    }
+
+
+    //------------------------------------------------------------------------------------------------------------------
+    public static void parseAndWriteFlights(String json, PrintWriter writer) {
+        JSONObject obj = new JSONObject(json);
+        JSONArray flights = obj.getJSONArray("data");
+
+        for (int i = 0; i < flights.length(); i++) {
+            JSONObject flight = flights.getJSONObject(i);
+
+            String flightNumber = flight.getJSONObject("flight").optString("iata", "N/A");
+            String airline = flight.getJSONObject("airline").optString("name", "N/A");
+            String arrival = flight.getJSONObject("arrival").optString("airport", "N/A");
+            String departureTime = flight.getJSONObject("departure").optString("scheduled", "N/A");
+            String delay = flight.getJSONObject("departure").optString("delay", "0");
+
+            writer.printf("%s,%s,%s,%s,%s\n", flightNumber, airline, arrival,departureTime, delay);
+        }
+    }
+
+}
